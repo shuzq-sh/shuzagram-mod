@@ -13,7 +13,7 @@ public class BlurredBackgroundColorProviderThemed implements BlurredBackgroundCo
     private float alpha;
 
     public BlurredBackgroundColorProviderThemed(Theme.ResourcesProvider resourcesProvider, int backgroundColorId) {
-        this(resourcesProvider, backgroundColorId, LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f);
+        this(resourcesProvider, backgroundColorId, Theme.shouldUseLiquidGlass(resourcesProvider) ? 0.56f : (LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f));
     }
 
     public BlurredBackgroundColorProviderThemed(Theme.ResourcesProvider resourcesProvider, int backgroundColorId, float alpha) {
@@ -40,7 +40,17 @@ public class BlurredBackgroundColorProviderThemed implements BlurredBackgroundCo
         final int color = Theme.getColor(backgroundColorId, resourcesProvider);
         backgroundColor = Theme.multAlpha(color, alpha);
 
-        if (isDark()) {
+        if (Theme.shouldUseLiquidGlass(resourcesProvider)) {
+            if (isDark()) {
+                strokeColorTop = 0x55FFFFFF;
+                strokeColorBottom = 0x24FFFFFF;
+                shadowColor = 0x26000000;
+            } else {
+                strokeColorTop = 0xBBFFFFFF;
+                strokeColorBottom = 0x55FFFFFF;
+                shadowColor = 0x20000000;
+            }
+        } else if (isDark()) {
             strokeColorTop = 0x28FFFFFF;
             strokeColorBottom = 0x14FFFFFF;
             shadowColor = 0;

@@ -35,6 +35,14 @@ public class MessageDrawable extends Drawable {
     private int currentBackgroundHeight;
     public Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint selectedPaint;
+    // ShuzaGram Mod liquid-glass bubble overlay (unit-space shaders cached once, positioned via matrix).
+    private Paint shuzaTintPaint, shuzaRimPaint, shuzaGlossPaint;
+    private LinearGradient shuzaRimShader, shuzaGlossShader;
+    private final Matrix shuzaRimMatrix = new Matrix();
+    private final Matrix shuzaGlossMatrix = new Matrix();
+    private int shuzaLastL = Integer.MIN_VALUE, shuzaLastT = Integer.MIN_VALUE, shuzaLastR = Integer.MIN_VALUE, shuzaLastB = Integer.MIN_VALUE;
+    private int shuzaTop;
+    private int shuzaBgWidth;
     private int currentColor;
     private int currentGradientColor1;
     private int currentGradientColor2;
@@ -294,6 +302,8 @@ public class MessageDrawable extends Drawable {
             motionBackground[num].setBounds(0, blurredViewTopOffset, backgroundWidth, backgroundHeight - heightOffset);
         }
         currentBackgroundHeight = backgroundHeight;
+        shuzaBgWidth = backgroundWidth;
+        shuzaTop = top;
 
         topY = top - (gradientShader instanceof BitmapShader ? heightOffset : 0);
         isTopNear = topNear;
@@ -559,7 +569,10 @@ public class MessageDrawable extends Drawable {
 
     public void draw(Canvas canvas, Paint paintToUse) {
         Rect bounds = getBounds();
-        if (paintToUse == null && paint.getStyle() == Paint.Style.FILL && gradientShader == null && overrideRoundRadius == 0 && overrideRounding <= 0) {
+        final boolean useShuzaGlass = paintToUse == null
+                && (currentType == TYPE_TEXT || currentType == TYPE_MEDIA)
+                && Theme.shouldUseLiquidGlass(resourcesProvider);
+        if (!useShuzaGlass && paintToUse == null && paint.getStyle() == Paint.Style.FILL && gradientShader == null && overrideRoundRadius == 0 && overrideRounding <= 0) {
             Drawable background = getBackgroundDrawable();
             if (background != null) {
                 background.setBounds(bounds);
@@ -617,12 +630,140 @@ public class MessageDrawable extends Drawable {
             generatePath(path, bounds, padding, rad, smallRad, nearRad, top, drawFullBottom, drawFullTop, paintToUse != null);
         }
 
-        canvas.drawPath(path, p);
-        if (gradientShader != null && isSelected && paintToUse == null) {
-            int color = getColor(Theme.key_chat_outBubbleGradientSelectedOverlay);
-            selectedPaint.setColor(ColorUtils.setAlphaComponent(color, (int) (Color.alpha(color) * alpha / 255f)));
-            canvas.drawPath(path, selectedPaint);
+        if (useShuzaGlass) {
+            drawShuzaGlassBacking(canvas, path, p);
+            drawShuzaGlass(canvas, path, bounds, padding);
+        } else {
+            canvas.drawPath(path, p);
+            if (gradientShader != null && isSelected && paintToUse == null) {
+                int color = getColor(Theme.key_chat_outBubbleGradientSelectedOverlay);
+                selectedPaint.setColor(ColorUtils.setAlphaComponent(color, (int) (Color.alpha(color) * alpha / 255f)));
+                canvas.drawPath(path, selectedPaint);
+            }
         }
+    }
+
+    private void drawShuzaGlassBacking(Canvas canvas, Path path, Paint fallbackPaint) {
+        Paint blurPaint = resourcesProvider != null
+                ? resourcesProvider.getPaint(Theme.key_paint_chatActionBackground)
+                : Theme.chat_actionBackgroundPaint;
+        boolean hasBlur = blurPaint != null && blurPaint.getShader() != null
+                && shuzaBgWidth > 0 && currentBackgroundHeight > 0;
+        if (!hasBlur) {
+            canvas.drawPath(path, fallbackPaint);
+            if (gradientShader != null && isSelected) {
+                int color = getColor(Theme.key_chat_outBubbleGradientSelectedOverlay);
+                selectedPaint.setColor(ColorUtils.setAlphaComponent(color, (int) (Color.alpha(color) * alpha / 255f)));
+                canvas.drawPath(path, selectedPaint);
+            }
+            return;
+        }
+        if (resourcesProvider != null) {
+            resourcesProvider.applyServiceShaderMatrix(shuzaBgWidth, currentBackgroundHeight, 0, shuzaTop);
+        } else {
+            Theme.applyServiceShaderMatrix(shuzaBgWidth, currentBackgroundHeight, 0, shuzaTop);
+        }
+        int oldBlurAlpha = blurPaint.getAlpha();
+        blurPaint.setAlpha(alpha);
+        canvas.drawPath(path, blurPaint);
+        blurPaint.setAlpha(oldBlurAlpha);
+
+        if (shuzaTintPaint == null) {
+            shuzaTintPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        }
+        float af = alpha / 255f;
+        if (isOut) {
+            if (gradientShader != null) {
+                int oldAlpha = fallbackPaint.getAlpha();
+                fallbackPaint.setAlpha((int) ((isSelected ? 168 : 130) * af));
+                canvas.drawPath(path, fallbackPaint);
+                fallbackPaint.setAlpha(oldAlpha);
+                if (isSelected) {
+                    int sel = getColor(Theme.key_chat_outBubbleGradientSelectedOverlay);
+                    selectedPaint.setColor(ColorUtils.setAlphaComponent(sel, (int) (Color.alpha(sel) * af)));
+                    canvas.drawPath(path, selectedPaint);
+                }
+            } else {
+                int base = currentColor != 0 ? currentColor : getColor(isSelected ? Theme.key_chat_outBubbleSelected : Theme.key_chat_outBubble);
+                shuzaTintPaint.setColor(ColorUtils.setAlphaComponent(base, (int) ((isSelected ? 168 : 130) * af)));
+                canvas.drawPath(path, shuzaTintPaint);
+            }
+        } else {
+            boolean dark = resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
+            int tint = dark
+                    ? Color.argb((int) ((isSelected ? 148 : 110) * af), 30, 35, 45)
+                    : Color.argb((int) ((isSelected ? 162 : 115) * af), 255, 255, 255);
+            shuzaTintPaint.setColor(tint);
+            canvas.drawPath(path, shuzaTintPaint);
+            if (isSelected) {
+                int sel = getColor(Theme.key_chat_inBubbleSelected);
+                shuzaTintPaint.setColor(ColorUtils.setAlphaComponent(sel, (int) (72 * af)));
+                canvas.drawPath(path, shuzaTintPaint);
+            }
+        }
+    }
+
+    @Override
+    protected void onBoundsChange(Rect bounds) {
+        super.onBoundsChange(bounds);
+        updateShuzaGlassMatrices(bounds, dp(2));
+    }
+
+    private void updateShuzaGlassMatrices(Rect bounds, int padding) {
+        if (shuzaRimShader == null || shuzaGlossShader == null) {
+            return;
+        }
+        if (bounds.left == shuzaLastL && bounds.top == shuzaLastT && bounds.right == shuzaLastR && bounds.bottom == shuzaLastB) {
+            return;
+        }
+        int w = bounds.width(), h = bounds.height();
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        shuzaLastL = bounds.left;
+        shuzaLastT = bounds.top;
+        shuzaLastR = bounds.right;
+        shuzaLastB = bounds.bottom;
+
+        shuzaRimMatrix.setScale(w, h);
+        shuzaRimMatrix.postTranslate(bounds.left, bounds.top);
+        shuzaRimShader.setLocalMatrix(shuzaRimMatrix);
+
+        float glossH = Math.max(1f, (h - padding * 2) * 0.15f);
+        shuzaGlossMatrix.setScale(1f, glossH);
+        shuzaGlossMatrix.postTranslate(bounds.left, bounds.top + padding);
+        shuzaGlossShader.setLocalMatrix(shuzaGlossMatrix);
+    }
+
+    // Specular rim + top gloss, the iOS-style refraction edge. Unit-space gradients
+    // are allocated once and positioned onBoundsChange via Matrix (zero per-frame allocs).
+    private void drawShuzaGlass(Canvas canvas, Path path, Rect bounds, int padding) {
+        int w = bounds.width(), h = bounds.height();
+        if (w <= 0 || h <= 0) return;
+        if (shuzaRimPaint == null) {
+            shuzaRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            shuzaRimPaint.setStyle(Paint.Style.STROKE);
+            shuzaRimPaint.setStrokeWidth(dp(1.2f));
+            shuzaRimShader = new LinearGradient(0, 0, 1, 1,
+                    new int[]{0x77FFFFFF, 0x15FFFFFF, 0x44FFFFFF}, new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+            shuzaRimPaint.setShader(shuzaRimShader);
+
+            shuzaGlossPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            shuzaGlossShader = new LinearGradient(0, 0, 0, 1,
+                    new int[]{0x22FFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP);
+            shuzaGlossPaint.setShader(shuzaGlossShader);
+            shuzaLastL = Integer.MIN_VALUE;
+        }
+        updateShuzaGlassMatrices(bounds, padding);
+        int a = alpha;
+        float glossBottom = bounds.top + padding + Math.max(1f, (h - padding * 2) * 0.15f);
+        canvas.save();
+        canvas.clipPath(path);
+        shuzaGlossPaint.setAlpha(a);
+        canvas.drawRect(bounds.left, bounds.top + padding, bounds.right, glossBottom, shuzaGlossPaint);
+        canvas.restore();
+        shuzaRimPaint.setAlpha(a);
+        canvas.drawPath(path, shuzaRimPaint);
     }
 
     public Path makePath() {

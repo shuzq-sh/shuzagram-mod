@@ -151,6 +151,12 @@ public class LiteMode {
             // always enabled for tablets
             return true;
         }
+        // ShuzaGram Mod: liquid glass turns the built-in glass pipeline and chat
+        // blur on by default (unless the power saver is active).
+        if ((flag == FLAG_LIQUID_GLASS || flag == FLAG_CHAT_BLUR || flag == FLAG_CHAT_BACKGROUND)
+                && org.telegram.messenger.ShuzaMod.liquidGlass() && getPowerSaverLevel() < 100) {
+            return true;
+        }
         return (getValue() & preprocessFlag(flag)) > 0;
     }
 

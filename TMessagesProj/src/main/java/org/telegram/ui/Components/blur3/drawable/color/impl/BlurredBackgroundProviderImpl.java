@@ -148,25 +148,27 @@ public class BlurredBackgroundProviderImpl {
     }
 
     public static BlurredBackgroundProvider bottomPanelChatActivity(Theme.ResourcesProvider resourcesProvider) {
+        final boolean shuzaGlass = Theme.shouldUseLiquidGlass(resourcesProvider);
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
                     if (!checkBlurEnabled(resourcesProvider)) {
                         return ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_chat_messagePanelBackground, r), 255);
                     }
 
-                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                    final float alpha = Theme.shouldUseLiquidGlass(r) ? 0.56f : (LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f);
                     final int colorBg = Theme.getColor(Theme.key_chat_messagePanelBackground, r);
                     return Theme.multAlpha(colorBg, alpha);
                 })
-                .setStrokeColorTop(0xFFFFFFFF, 0x28FFFFFF)
-                .setStrokeColorBottom(0xFFFFFFFF, 0x14FFFFFF)
-                .setShadowColor(0x20000000, 0)
+                .setStrokeColorTop(shuzaGlass ? 0xBBFFFFFF : 0xFFFFFFFF, shuzaGlass ? 0x55FFFFFF : 0x28FFFFFF)
+                .setStrokeColorBottom(shuzaGlass ? 0x55FFFFFF : 0xFFFFFFFF, shuzaGlass ? 0x24FFFFFF : 0x14FFFFFF)
+                .setShadowColor(0x20000000, shuzaGlass ? 0x22000000 : 0)
                 //.setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
-                .setStrokeWidth(dpf2(0.5f), dpf2(0.5f))
+                .setStrokeWidth(shuzaGlass ? dpf2(1f) : dpf2(0.5f), shuzaGlass ? dpf2(0.8f) : dpf2(0.5f))
                 .build();
     }
 
     public static BlurredBackgroundProvider topPanelChatActivity(Theme.ResourcesProvider resourcesProvider) {
+        final boolean shuzaGlass = Theme.shouldUseLiquidGlass(resourcesProvider);
         return new BlurredBackgroundProviderBuilder(resourcesProvider)
                 .setBackgroundColor((r, isDark) -> {
                     if (!checkBlurEnabled(resourcesProvider)) {
@@ -174,15 +176,15 @@ public class BlurredBackgroundProviderImpl {
                             Theme.key_actionBarDefault : Theme.key_chat_topPanelBackground, r), 255);
                     }
 
-                    final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
+                    final float alpha = Theme.shouldUseLiquidGlass(r) ? 0.56f : (LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f);
                     final int colorBg = Theme.getColor(Theme.key_chat_topPanelBackground, r);
                     return Theme.multAlpha(colorBg, alpha);
                 })
-                .setStrokeColorTop(0xFFFFFFFF, 0x20FFFFFF)
-                .setStrokeColorBottom(0xFFFFFFFF, 0x14FFFFFF)
-                .setShadowColor(0x20000000, 0)
+                .setStrokeColorTop(shuzaGlass ? 0xBBFFFFFF : 0xFFFFFFFF, shuzaGlass ? 0x55FFFFFF : 0x20FFFFFF)
+                .setStrokeColorBottom(shuzaGlass ? 0x55FFFFFF : 0xFFFFFFFF, shuzaGlass ? 0x55FFFFFF : 0x14FFFFFF)
+                .setShadowColor(0x20000000, shuzaGlass ? 0x22000000 : 0)
                 //.setShadowLayer(dpf2(10 / 3f), 0, dpf2(2 / 3f))
-                .setStrokeWidth(dpf2(0.55f), dpf2(0.55f))
+                .setStrokeWidth(shuzaGlass ? dpf2(1f) : dpf2(0.55f), shuzaGlass ? dpf2(1f) : dpf2(0.55f))
                 .build();
     }
 
@@ -336,6 +338,9 @@ public class BlurredBackgroundProviderImpl {
     }
 
     public static boolean checkBlurEnabled(int currentAccount, Theme.ResourcesProvider resourcesProvider) {
+        if (org.telegram.messenger.ShuzaMod.liquidGlass()) {
+            return SharedConfig.chatBlurEnabled();
+        }
         final boolean isDark = resourcesProvider != null ? resourcesProvider.isDark() : Theme.isCurrentThemeDark();
         final boolean isLight = !isDark;
         boolean blurEnabled = SharedConfig.chatBlurEnabled();

@@ -1261,6 +1261,9 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_SUGGESTION_ADD_OFFER = 114;
     public final static int OPTION_SHUZA_EDIT_HISTORY = 2026;
     public final static int OPTION_SHUZA_DETAILS = 2027;
+    private final static int OPTION_SHUZA_PLUGIN_BASE = 3000;
+    private final java.util.ArrayList<String> shuzaPluginMenuIds = new java.util.ArrayList<>();
+    private MessageObject shuzaPluginMenuMessage;
 
     public final static int OPTION_VIEW_STATISTICS = 115;
     public final static int OPTION_WELCOME_REVERT = 116;
@@ -3626,6 +3629,9 @@ public class ChatActivity extends BaseFragment implements
                 if (!BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, themeDelegate)) {
                     return ColorUtils.setAlphaComponent(getThemedColor(Theme.key_chat_messagePanelBackground), 255);
                 }
+                if (Theme.shouldUseLiquidGlass(themeDelegate)) {
+                    return ColorUtils.setAlphaComponent(super.getBackgroundColor(), 142);
+                }
 
                 final boolean isThemeLight = themeDelegate != null && !themeDelegate.isDark();
                 if (isThemeLight) {
@@ -3639,6 +3645,9 @@ public class ChatActivity extends BaseFragment implements
             public int getBackgroundColor() {
                 if (!BlurredBackgroundProviderImpl.checkBlurEnabled(currentAccount, themeDelegate)) {
                     return ColorUtils.setAlphaComponent(getThemedColor(Theme.key_windowBackgroundWhite), 255);
+                }
+                if (Theme.shouldUseLiquidGlass(themeDelegate)) {
+                    return ColorUtils.setAlphaComponent(super.getBackgroundColor(), 142);
                 }
 
                 final boolean isThemeLight = themeDelegate != null && !themeDelegate.isDark();
@@ -31132,6 +31141,28 @@ public class ChatActivity extends BaseFragment implements
                 options.add(OPTION_SHUZA_EDIT_HISTORY);
                 icons.add(R.drawable.msg_edit);
             }
+            shuzaPluginMenuIds.clear();
+            shuzaPluginMenuMessage = message;
+            if (message != null) {
+                try {
+                    java.util.HashMap<String, Object> ctx = new java.util.HashMap<>();
+                    ctx.put("account", currentAccount);
+                    ctx.put("dialog_id", dialog_id);
+                    ctx.put("message_id", message.getId());
+                    for (Object o : org.telegram.messenger.plugins.PluginHost.menuItems("MESSAGE_CONTEXT_MENU", ctx)) {
+                        java.util.Map<?, ?> mi = (java.util.Map<?, ?>) o;
+                        Object t = mi.get("text");
+                        Object id = mi.get("id");
+                        if (t == null || id == null) continue;
+                        items.add(t.toString());
+                        options.add(OPTION_SHUZA_PLUGIN_BASE + shuzaPluginMenuIds.size());
+                        icons.add(R.drawable.msg_settings);
+                        shuzaPluginMenuIds.add(id.toString());
+                    }
+                } catch (Throwable e) {
+                    FileLog.e(e);
+                }
+            }
 
             if (options.isEmpty() && optionsView == null) {
                 return false;
@@ -33504,6 +33535,18 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void processSelectedOption(int option) {
+        if (option >= OPTION_SHUZA_PLUGIN_BASE && option < OPTION_SHUZA_PLUGIN_BASE + shuzaPluginMenuIds.size()) {
+            try {
+                java.util.HashMap<String, Object> ctx = new java.util.HashMap<>();
+                ctx.put("account", currentAccount);
+                ctx.put("dialog_id", dialog_id);
+                if (shuzaPluginMenuMessage != null) ctx.put("message_id", shuzaPluginMenuMessage.getId());
+                org.telegram.messenger.plugins.PluginHost.menuClick(shuzaPluginMenuIds.get(option - OPTION_SHUZA_PLUGIN_BASE), ctx);
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+            return;
+        }
         if (selectedObject == null || getParentActivity() == null) {
             return;
         }
@@ -43884,6 +43927,23 @@ public class ChatActivity extends BaseFragment implements
             }
         }
 
+        @Override
+        public boolean shouldUseLiquidGlass() {
+            if (parentThemeDelegate != null) {
+                return parentThemeDelegate.shouldUseLiquidGlass();
+            }
+            if (!org.telegram.messenger.ShuzaMod.liquidGlass()) {
+                return false;
+            }
+            if (chatTheme != null && !chatTheme.showAsDefaultStub) {
+                return false;
+            }
+            if (wallpaper != null && (wallpaper.pattern || (wallpaper.settings != null && wallpaper.settings.intensity < 0))) {
+                return false;
+            }
+            return true;
+        }
+
         private void setupChatTheme(EmojiThemes chatTheme, TLRPC.WallPaper wallPaper, boolean withAnimation, boolean createNewResources) {
             if (parentThemeDelegate != null) return;
 
@@ -44118,7 +44178,8 @@ public class ChatActivity extends BaseFragment implements
                 dimAmount = ((ChatBackgroundDrawable) backgroundDrawable).getDimAmount();
                 backgroundDrawable = ((ChatBackgroundDrawable) backgroundDrawable).getDrawable(false);
             }
-            drawServiceGradient = (backgroundDrawable instanceof MotionBackgroundDrawable || backgroundDrawable instanceof BitmapDrawable) && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW;
+            drawServiceGradient = (backgroundDrawable instanceof MotionBackgroundDrawable || backgroundDrawable instanceof BitmapDrawable)
+                    && (SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW || org.telegram.messenger.ShuzaMod.liquidGlass());
             final boolean forceRecolorServiceMessages = isGiftTheme() && isDark;
 
             drawSelectedGradient = drawServiceGradient;
@@ -44195,20 +44256,21 @@ public class ChatActivity extends BaseFragment implements
                     darkenPaint.setColor(0);
                 }
                 if (drawServiceGradient) {
+                    float vibrancy = org.telegram.messenger.ShuzaMod.glassVibrancy();
                     ColorMatrix colorMatrix = new ColorMatrix();
                     if (backgroundDrawable instanceof MotionBackgroundDrawable) {
                         float intensity = ((MotionBackgroundDrawable) backgroundDrawable).getIntensity();
                         if (intensity >= 0) {
-                            colorMatrix.setSaturation(1.6f);
+                            colorMatrix.setSaturation(1.6f * vibrancy);
                             AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isDark ? .97f : .92f);
                             AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isDark ? +.12f : -.06f);
                         } else {
-                            colorMatrix.setSaturation(1.1f);
+                            colorMatrix.setSaturation(1.1f * vibrancy);
                             AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isDark ? .4f : .8f);
                             AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isDark ? +.08f : -.06f);
                         }
                     } else {
-                        colorMatrix.setSaturation(1.6f);
+                        colorMatrix.setSaturation(1.6f * vibrancy);
                         AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isDark ? .9f : .84f);
                         AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isDark ? +.04f : +.06f);
                     }

@@ -2138,6 +2138,10 @@ public class Theme {
             return false;
         }
 
+        default boolean shouldUseLiquidGlass() {
+            return org.telegram.messenger.ShuzaMod.liquidGlass();
+        }
+
         default boolean isDark() {
             // used only in PeerColorActivity
             // support in other implementations to use
@@ -2151,6 +2155,10 @@ public class Theme {
         default ColorFilter getAnimatedEmojiColorFilter() {
             return Theme.chat_animatedEmojiTextColorFilter;
         }
+    }
+
+    public static boolean shouldUseLiquidGlass(ResourcesProvider resourcesProvider) {
+        return resourcesProvider != null ? resourcesProvider.shouldUseLiquidGlass() : org.telegram.messenger.ShuzaMod.liquidGlass();
     }
 
     private static final Object sync = new Object();
@@ -8677,7 +8685,9 @@ public class Theme {
             }
         }
         Drawable drawable = wallpaperOverride != null ? wallpaperOverride : currentWallpaper;
-        boolean drawServiceGradient = (drawable instanceof MotionBackgroundDrawable || drawable instanceof BitmapDrawable) && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BACKGROUND);
+        boolean drawServiceGradient = (drawable instanceof MotionBackgroundDrawable || drawable instanceof BitmapDrawable)
+                && (SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW || org.telegram.messenger.ShuzaMod.liquidGlass())
+                && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BACKGROUND);
         if (drawServiceGradient) {
             Bitmap newBitmap = null;
             if (drawable instanceof MotionBackgroundDrawable) {
@@ -8685,7 +8695,11 @@ public class Theme {
             } else if (drawable instanceof BitmapDrawable) {
                 newBitmap = checkBlur(drawable);
             }
-            if (serviceBitmap != newBitmap) {
+            if (newBitmap == null) {
+                drawServiceGradient = false;
+                serviceBitmap = null;
+                serviceBitmapShader = null;
+            } else if (serviceBitmap != newBitmap) {
                 serviceBitmap = newBitmap;
                 serviceBitmapShader = new BitmapShader(serviceBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -8745,20 +8759,21 @@ public class Theme {
         currentColor = serviceColor;
 
         if (serviceBitmapShader != null && (currentColors.indexOfKey(key_chat_serviceBackground) < 0 || drawable instanceof MotionBackgroundDrawable || drawable instanceof BitmapDrawable)) {
+            float vibrancy = org.telegram.messenger.ShuzaMod.glassVibrancy();
             ColorMatrix colorMatrix = new ColorMatrix();
             if (drawable instanceof MotionBackgroundDrawable) {
                 float intensity = ((MotionBackgroundDrawable) drawable).getIntensity();
                 if (intensity >= 0) {
-                    colorMatrix.setSaturation(1.6f);
+                    colorMatrix.setSaturation(1.6f * vibrancy);
                     AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? .97f : .92f);
                     AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? +.12f : -.06f);
                 } else {
-                    colorMatrix.setSaturation(1.1f);
+                    colorMatrix.setSaturation(1.1f * vibrancy);
                     AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? .4f : .8f);
                     AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? +.08f : -.06f);
                 }
             } else {
-                colorMatrix.setSaturation(1.6f);
+                colorMatrix.setSaturation(1.6f * vibrancy);
                 AndroidUtilities.multiplyBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? .9f : .84f);
                 AndroidUtilities.adjustBrightnessColorMatrix(colorMatrix, isCurrentThemeDark() ? -.04f : +.06f);
             }

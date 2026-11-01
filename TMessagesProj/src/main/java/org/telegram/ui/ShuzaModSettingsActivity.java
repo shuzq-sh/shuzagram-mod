@@ -46,7 +46,7 @@ public class ShuzaModSettingsActivity extends UniversalFragment {
     private boolean fontChanged;
 
     private static final int OPEN_GLASS = 1, OPEN_GHOST = 2, OPEN_MESSAGES = 3, OPEN_COUPLE = 4, OPEN_THEMES = 5, OPEN_BANNER = 6, CHECK_UPDATE = 7;
-    private static final int GLASS_TOGGLE = 10, GLASS_PICK = 11, GLASS_RESET = 12;
+    private static final int GLASS_TOGGLE = 10, GLASS_PICK = 11, GLASS_RESET = 12, GLASS_LIQUID = 14;
     private static final int GHOST_ONLINE = 20, GHOST_TYPING = 21, GHOST_READ = 22, GHOST_STORIES = 23, GHOST_SCHEDULED = 24;
     private static final int KEEP_DELETED = 30, KEEP_EDITS = 31, CLEAR_STORE = 32;
     private static final int COUPLE_VISIBLE = 40, COUPLE_BREAK = 41, COUPLE_PARTNER = 42;
@@ -137,6 +137,8 @@ public class ShuzaModSettingsActivity extends UniversalFragment {
     }
 
     private void fillGlass(ArrayList<UItem> items) {
+        items.add(UItem.asCheck(GLASS_LIQUID, getString(R.string.ShuzaModLiquidGlass)).setChecked(ShuzaMod.liquidGlass()));
+        items.add(UItem.asShadow(getString(R.string.ShuzaModLiquidGlassInfo)));
         items.add(UItem.asCheck(GLASS_TOGGLE, getString(R.string.ShuzaModGlassToggle)).setChecked(ShuzaMod.glassEnabled()));
         items.add(UItem.asShadow(getString(R.string.ShuzaModGlassInfo)));
         if (!ShuzaMod.glassEnabled()) {
@@ -342,8 +344,13 @@ public class ShuzaModSettingsActivity extends UniversalFragment {
                 return;
             case CHECK_UPDATE: ShuzaModUpdater.check(getParentActivity(), true); return;
             case GLASS_TOGGLE:
-                ShuzaMod.prefs().edit().putBoolean("glass", !ShuzaMod.glassEnabled()).apply();
+                ShuzaMod.prefs().edit().putBoolean("app_bg_glass", !ShuzaMod.glassEnabled()).apply();
                 glassChanged(false);
+                return;
+            case GLASS_LIQUID:
+                ShuzaMod.prefs().edit().putBoolean("liquid_glass", !ShuzaMod.liquidGlass()).apply();
+                confirm(getString(R.string.ShuzaModLiquidGlass), getString(R.string.ShuzaModRestartApply), getString(R.string.ShuzaModRestartButton), this::restartApp);
+                refresh();
                 return;
             case GLASS_PICK: pickImage(REQUEST_BACKGROUND); return;
             case GLASS_RESET:

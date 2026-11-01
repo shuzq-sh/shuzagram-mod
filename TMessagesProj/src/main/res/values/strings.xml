@@ -11636,8 +11636,8 @@
     <string name="ShuzaModMessagesSubtitle">Deleted messages and edit history</string>
     <string name="ShuzaModGhostOff">Off</string>
     <string name="ShuzaModGhostOn">On: %1$d of %2$d</string>
-    <string name="ShuzaModGlassToggle">Glass effect</string>
-    <string name="ShuzaModGlassInfo">Screens become translucent over a blurred background, in every part of the app.</string>
+    <string name="ShuzaModGlassToggle">Custom app-wide background</string>
+    <string name="ShuzaModGlassInfo">Uses standard Telegram backgrounds by default. Enable to make all screens translucent over a custom or ShuzaGram blurred background.</string>
     <string name="ShuzaModGlassOpacity">Panel opacity</string>
     <string name="ShuzaModBackgroundDefault">Use the ShuzaGram background</string>
     <string name="ShuzaModThemesInfo">Themes combine with the glass effect.</string>
@@ -11707,4 +11707,8 @@
     <string name="ShuzaModPluginInstalled">Plugin installed</string>
     <string name="ShuzaModPluginInstallError">Could not install this plugin</string>
     <string name="ShuzaModPluginWarning">Plugins run with full access to your account. Install only plugins you trust.</string>
+    <string name="ShuzaModLiquidGlass">Liquid glass</string>
+    <string name="ShuzaModLiquidGlassInfo">Frosted blurred glass with refraction rim on chat bubbles, headers, input bars and floating buttons over standard Telegram wallpapers.</string>
+    <string name="ShuzaModRestartApply">Restart ShuzaGram to apply this change?</string>
+    <string name="ShuzaModRestartButton">Restart</string>
 </resources>

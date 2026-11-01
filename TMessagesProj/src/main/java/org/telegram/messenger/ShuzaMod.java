@@ -119,12 +119,66 @@ public class ShuzaMod {
         return backgroundOriginal().exists();
     }
 
+    // Tapping a .plugin file in a chat offers to install it instead of opening it.
+    public static boolean offerInstallPlugin(android.app.Activity activity, String path, String fileName) {
+        if (activity == null) {
+            return false;
+        }
+        try {
+            org.telegram.ui.ActionBar.AlertDialog.Builder b = new org.telegram.ui.ActionBar.AlertDialog.Builder(activity);
+            b.setTitle(LocaleController.getString(R.string.ShuzaModPluginInstall));
+            b.setMessage(fileName + "\n\n" + LocaleController.getString(R.string.ShuzaModPluginWarning));
+            b.setPositiveButton(LocaleController.getString(R.string.ShuzaModPluginInstall), (d, w) -> Utilities.globalQueue.postRunnable(() -> {
+                String result;
+                try {
+                    java.io.File dir = new java.io.File(ApplicationLoader.getFilesDirFixed(), "plugins");
+                    dir.mkdirs();
+                    byte[] bytes = java.nio.file.Files.readAllBytes(new java.io.File(path).toPath());
+                    String name = fileName;
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("__id__\\s*=\\s*[\"']([A-Za-z0-9_]+)").matcher(new String(bytes, 0, Math.min(bytes.length, 4000), "UTF-8"));
+                    if (m.find()) name = m.group(1) + ".plugin";
+                    java.io.File out = new java.io.File(dir, name);
+                    try (java.io.FileOutputStream fo = new java.io.FileOutputStream(out)) {
+                        fo.write(bytes);
+                    }
+                    result = org.telegram.messenger.plugins.PluginHost.install(out.getAbsolutePath(), true);
+                } catch (Exception e) {
+                    FileLog.e(e);
+                    result = "error: " + e;
+                }
+                final boolean ok = result != null && !result.startsWith("error");
+                AndroidUtilities.runOnUIThread(() -> {
+                    org.telegram.ui.ActionBar.BaseFragment f = org.telegram.ui.LaunchActivity.getSafeLastFragment();
+                    if (f != null) {
+                        org.telegram.ui.Components.BulletinFactory.of(f).createSimpleBulletin(ok ? R.raw.done : R.raw.error,
+                                LocaleController.getString(ok ? R.string.ShuzaModPluginInstalled : R.string.ShuzaModPluginInstallError)).show();
+                    }
+                });
+            }));
+            b.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+            b.show();
+            return true;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return false;
+        }
+    }
+
+    public static boolean liquidGlass() {
+        return prefs().getBoolean("liquid_glass", true);
+    }
+
+    // Saturation multiplier applied to the blurred wallpaper so glass stays vivid.
+    public static float glassVibrancy() {
+        return liquidGlass() ? 1.24f : 1f;
+    }
+
     public static boolean ghostScheduledSend() {
         return prefs().getBoolean("ghost_scheduled", false);
     }
 
     public static boolean glassEnabled() {
-        return prefs().getBoolean("glass", true);
+        return prefs().getBoolean("app_bg_glass", false);
     }
 
     // 0..100 sliders

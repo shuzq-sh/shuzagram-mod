@@ -198,6 +198,12 @@ public final class PluginHost {
         try { e.invokeSetting(token, value); } catch (Throwable t) { FileLog.e(t); }
     }
 
+    public static Object invokeSettingValue(String token, Object value) {
+        Engine e = engine;
+        if (e == null) return value;
+        try { Object r = e.invokeSetting(token, value); return r != null ? r : value; } catch (Throwable t) { FileLog.e(t); return value; }
+    }
+
     public static void appEvent(String event) {
         Engine e = engine;
         if (e != null) {

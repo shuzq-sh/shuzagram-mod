@@ -4333,6 +4333,18 @@ public class AndroidUtilities {
     }
 
     public static boolean openForView(MessageObject message, Activity activity, Theme.ResourcesProvider resourcesProvider, boolean restrict) {
+        {
+            String shuzaName = message.getDocumentName();
+            if (shuzaName != null && shuzaName.toLowerCase().endsWith(".plugin")) {
+                File pf = message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0 ? new File(message.messageOwner.attachPath) : null;
+                if (pf == null || !pf.exists()) {
+                    pf = FileLoader.getInstance(message.currentAccount).getPathToMessage(message.messageOwner);
+                }
+                if (pf != null && pf.exists() && ShuzaMod.offerInstallPlugin(activity, pf.getAbsolutePath(), shuzaName)) {
+                    return true;
+                }
+            }
+        }
         File f = null;
         if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {
             f = new File(message.messageOwner.attachPath);

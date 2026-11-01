@@ -10,6 +10,7 @@ import org.telegram.messenger.plugins.PluginHost;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.Components.EditTextBoldCursor;
 import org.telegram.ui.Components.UItem;
+// slider uses UItem.asIntSlideView
 import org.telegram.ui.Components.UniversalAdapter;
 import org.telegram.ui.Components.UniversalFragment;
 
@@ -67,6 +68,21 @@ public class ShuzaPluginSettingsActivity extends UniversalFragment {
                 case "selector":
                     items.add(UItem.asButton(index, text, selectorLabel(m)));
                     break;
+                case "slider": {
+                    final Map<String, Object> rowM = m;
+                    int min = m.get("min") instanceof Number ? ((Number) m.get("min")).intValue() : 0;
+                    int max = m.get("max") instanceof Number ? ((Number) m.get("max")).intValue() : 100;
+                    int val = m.get("default") instanceof Number ? ((Number) m.get("default")).intValue() : min;
+                    final String token = str(m, "on_change_token", null);
+                    final String fmtToken = str(m, "format_token", null);
+                    items.add(UItem.asIntSlideView(0, min, val, max,
+                            v -> fmtToken != null ? String.valueOf(org.telegram.messenger.plugins.PluginHost.invokeSettingValue(fmtToken, v)) : String.valueOf(v),
+                            v -> {
+                                rowM.put("default", v);
+                                if (token != null) org.telegram.messenger.plugins.PluginHost.invokeSetting(token, v);
+                            }));
+                    break;
+                }
                 default:
                     String value = str(m, "subtext", null);
                     if ("input".equals(type) || "edittext".equals(type)) value = str(m, "default", null);

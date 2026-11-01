@@ -773,7 +773,8 @@ public class BlurringShader {
 
             colorMatrix = new ColorMatrix();
             if (type == BLUR_TYPE_BACKGROUND) {
-                AndroidUtilities.adjustSaturationColorMatrix(colorMatrix, +.45f);
+                // ShuzaGram Mod: extra vibrancy so wallpaper under the glass stays vivid.
+                AndroidUtilities.adjustSaturationColorMatrix(colorMatrix, org.telegram.messenger.ShuzaMod.liquidGlass() ? +.7f : +.45f);
             } else if (type == BLUR_TYPE_MENU_BACKGROUND) {
                 paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
                 oldPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
